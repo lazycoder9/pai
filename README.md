@@ -1,20 +1,22 @@
 # pai
 
-`pai` is a tiny CLI for running projects out of plain files instead of stuffing everything into chat history, sticky notes, or whatever PM tool you are currently pretending to enjoy.
+`pai` = `Project AInager`.
 
-I built it for myself because this is how I like to work:
+Haha, did you get it? No? Never mind.
+
+`pai` is a small CLI for keeping project memory in plain files. It stores ideas, features, tasks, and decisions inside a `.pai/` folder so the important stuff does not disappear into chat history.
+
+I made it for myself because this is how I like to work:
 
 - chat for thinking
 - files for memory
-- one small CLI to keep ideas, features, tasks, and decisions connected
+- one tiny CLI to keep both connected
 
-It is opinionated on purpose. If that clicks for you, use it. If it does not, use something else. No hard feelings, but this tool is not going to apologize for having a personality.
-
-It also exists to make working with AI agents less annoying. The idea is simple: give the agent a real project memory and a tiny CLI, then add a `pai` skill so it can manage project state without you micromanaging every step.
+It is opinionated, but not in a "you are using software wrong" way. More in a "this workflow makes my brain quieter" way. If it helps you too, nice.
 
 ## What it does
 
-`pai` creates and manages a `.pai/` folder in your project:
+`pai` creates a `.pai/` folder in your project:
 
 ```text
 .pai/
@@ -31,36 +33,23 @@ It also exists to make working with AI agents less annoying. The idea is simple:
   state.json
 ```
 
-Inside that folder, everything is plain Markdown plus a little metadata. The model is simple:
+Each item is just Markdown with a bit of metadata. The usual flow is:
 
 ```text
 idea -> feature -> task
 ```
 
-That gives you a lightweight project memory you can inspect, edit, diff, and commit like normal files.
+That means you can inspect it, edit it, diff it, and commit it like normal project files instead of hiding everything inside some tool.
 
-## Why this exists
+## Why it exists
 
-Most AI-assisted work has a memory problem.
+AI-assisted work has a memory problem.
 
-The chat is good at exploration, but terrible at being the source of truth. Important context gets buried, decisions get rediscovered, and tasks lose the reason they exist.
+Chat is good for exploration, but bad at being the source of truth. Context gets buried, decisions get rediscovered, and tasks lose the reason they exist.
 
-`pai` is my fix for that. Keep the thinking in chat. Keep the durable project state in files.
+`pai` fixes that by giving the project a real memory on disk.
 
-Another reason: I wanted agents to be able to operate on project state directly. If your agent can use `pai`, it can check status, create features, move tasks, and log decisions without waiting for you to manually translate everything into files.
-
-## Use with agents
-
-`pai` was built specifically to make work with AI agents more convenient.
-
-Instead of keeping project state trapped in chat, you can give the agent a skill that uses this CLI and let it:
-
-- inspect project status
-- create ideas, features, tasks, and decisions
-- move tasks through backlog, active, and done
-- answer "where are we?" style questions from actual project data
-
-This repo now includes a [`SKILL.md`](./SKILL.md) you can drop into an agent setup so the tool can be used without your constant involvement.
+It also makes working with AI agents easier. If your agent has access to `pai`, it can check status, create tasks, log decisions, and answer project questions without you manually translating every thought into files. That is what the included [`SKILL.md`](./SKILL.md) is for.
 
 ## Install
 
@@ -84,7 +73,7 @@ Initialize a project:
 pai init --name "demo"
 ```
 
-Add an idea, turn it into a feature, then break it into tasks:
+Add an idea, turn it into a feature, then break it into a task:
 
 ```bash
 pai add idea inbox-zero-for-agents \
@@ -101,7 +90,7 @@ pai add task scaffold-pai-folder \
   --body "Create the folder layout and seed files."
 ```
 
-See the current tree:
+See the project tree:
 
 ```bash
 pai status
@@ -115,13 +104,13 @@ Example output:
     └── 📌 scaffold-pai-folder backlog
 ```
 
-Inspect a specific item:
+Inspect an item:
 
 ```bash
 pai get task scaffold-pai-folder
 ```
 
-Move work forward:
+Move the task forward:
 
 ```bash
 pai start scaffold-pai-folder
@@ -130,17 +119,17 @@ pai complete scaffold-pai-folder
 
 ## Commands
 
-- `pai init` initializes a `.pai/` workspace
-- `pai add idea|feature|task|decision <slug>` creates a new item
-- `pai edit ...` updates metadata or body content
+- `pai init` creates a `.pai/` workspace
+- `pai add idea|feature|task|decision <slug>` creates an item
+- `pai edit ...` updates metadata or content
 - `pai delete ...` removes an item
-- `pai list ideas|features|tasks|decisions` lists items with optional filters
-- `pai get <slug>` or `pai get <type> <slug>` shows a single item
+- `pai list ideas|features|tasks|decisions` lists items with filters
+- `pai get <slug>` or `pai get <type> <slug>` shows item details
 - `pai status` prints the project tree
 - `pai start <task>` moves a task to `active`
 - `pai complete <task>` moves a task to `done`
 
-## Design constraints
+## Notes
 
 - local-first
 - plain files
@@ -148,8 +137,4 @@ pai complete scaffold-pai-folder
 - small command surface
 - useful for humans, easy for agents
 
-## Current state
-
-This is early, but usable. The point is not to be a giant project-management platform. The point is to be a sharp little tool for people who want structured project memory without ceremony.
-
-If that sounds good, steal it.
+This is intentionally small. It is not trying to become a giant project-management platform. It is just a sharp little tool for people who want structured project memory without a lot of ceremony.
