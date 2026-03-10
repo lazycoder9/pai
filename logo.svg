@@ -1,0 +1,78 @@
+<svg width="1000" height="200" viewBox="0 0 1000 200" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1000" y2="200">
+      <stop offset="0%" stop-color="#FFF8F0"></stop>
+      <stop offset="100%" stop-color="#FFECD2"></stop>
+    </linearGradient>
+    <linearGradient id="crust" x1="100" y1="30" x2="240" y2="170">
+      <stop offset="0%" stop-color="#E8B87A"></stop>
+      <stop offset="100%" stop-color="#C4935E"></stop>
+    </linearGradient>
+    <filter id="sh" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.08"></feDropShadow>
+    </filter>
+    <clipPath id="pieBody">
+      <path d="M 170 100 L 229 134 A 68 68 0 1 1 234 77 Z"></path>
+    </clipPath>
+    <clipPath id="pieSlice">
+      <path d="M 186 96 L 250 73 A 68 68 0 0 1 245 130 Z"></path>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="200" fill="url(#bg)"></rect>
+
+  <!-- ==================== PIE ==================== -->
+
+  <!-- Full pie with layered filling and one missing slice -->
+  <g filter="url(#sh)">
+    <g clip-path="url(#pieBody)">
+      <circle cx="170" cy="100" r="68" fill="#D4A574"></circle>
+      <circle cx="170" cy="100" r="58" fill="#F2CD2E"></circle>
+      <circle cx="170" cy="100" r="44" fill="#F6A13B"></circle>
+      <circle cx="170" cy="100" r="30" fill="#EB5A47"></circle>
+    </g>
+  </g>
+
+  <!-- Slice seams on the crust so the pulled slice aligns with the whole pie -->
+  <g clip-path="url(#pieBody)" opacity="0.34" stroke="#C99961" stroke-width="3.2" stroke-linecap="round">
+    <line x1="170" y1="100" x2="179" y2="33"></line>
+    <line x1="170" y1="100" x2="115" y2="60"></line>
+    <line x1="170" y1="100" x2="109" y2="130"></line>
+    <line x1="170" y1="100" x2="168" y2="166"></line>
+  </g>
+
+  <!-- Crust rim -->
+  <path d="M 229 134 A 68 68 0 1 1 234 77" fill="none" stroke="#B8864A" stroke-width="2.5"></path>
+
+  <!-- Pulled slice -->
+  <g filter="url(#sh)">
+    <g clip-path="url(#pieSlice)">
+      <circle cx="186" cy="96" r="68" fill="#D4A574"></circle>
+      <circle cx="186" cy="96" r="58" fill="#F2CD2E"></circle>
+      <circle cx="186" cy="96" r="44" fill="#F6A13B"></circle>
+      <circle cx="186" cy="96" r="30" fill="#EB5A47"></circle>
+    </g>
+    <path d="M 250 73 A 68 68 0 0 1 245 130" fill="none" stroke="#B8864A" stroke-width="2.5"></path>
+    <path d="M 186 96 L 250 73 M 186 96 L 245 130" fill="none" stroke="#C99961" stroke-width="2.4" stroke-linecap="round"></path>
+  </g>
+
+  <!-- ==================== LAYER LABELS ==================== -->
+  <line x1="210" y1="70" x2="270" y2="50" stroke="#8B6914" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.55"></line>
+  <line x1="220" y1="97" x2="275" y2="103" stroke="#C05000" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.55"></line>
+  <line x1="180" y1="113" x2="250" y2="160" stroke="#A01020" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.55"></line>
+  <text x="275" y="50" fill="#8B6914" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', monospace" font-size="9" font-weight="600">ideas</text>
+  <text x="284" y="106" fill="#C05000" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', monospace" font-size="9" font-weight="600">features</text>
+  <text x="255" y="170" fill="#A01020" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', monospace" font-size="9" font-weight="600">tasks</text>
+
+  
+  <!-- ==================== WORDMARK ==================== -->
+  <text x="560" y="100" text-anchor="middle" fill="#5C3D0E" font-family="Georgia, 'Times New Roman', serif" font-size="72" font-weight="700" letter-spacing="0.04em">pai</text>
+
+  <!-- Tagline -->
+  <text x="560" y="138" text-anchor="middle" fill="#A07830" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', monospace" font-size="12">get it? pai? pie?</text>
+  <text x="560" y="158" text-anchor="middle" fill="#A07830" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', monospace" font-size="11" opacity="0.55">...never mind</text>
+
+  <!-- Bottom label -->
+  <text x="560" y="188" text-anchor="middle" fill="#C4A060" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', monospace" font-size="9" letter-spacing="0.18em" opacity="0.5">PROJECT AINAGER</text>
+</svg>

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./logo.svg" alt="pai — project ainager">
+</p>
+
 # pai
 
 `pai` = `Project AInager`.
