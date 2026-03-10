@@ -10,6 +10,8 @@ I built it for myself because this is how I like to work:
 
 It is opinionated on purpose. If that clicks for you, use it. If it does not, use something else. No hard feelings, but this tool is not going to apologize for having a personality.
 
+It also exists to make working with AI agents less annoying. The idea is simple: give the agent a real project memory and a tiny CLI, then add a `pai` skill so it can manage project state without you micromanaging every step.
+
 ## What it does
 
 `pai` creates and manages a `.pai/` folder in your project:
@@ -45,15 +47,32 @@ The chat is good at exploration, but terrible at being the source of truth. Impo
 
 `pai` is my fix for that. Keep the thinking in chat. Keep the durable project state in files.
 
+Another reason: I wanted agents to be able to operate on project state directly. If your agent can use `pai`, it can check status, create features, move tasks, and log decisions without waiting for you to manually translate everything into files.
+
+## Use with agents
+
+`pai` was built specifically to make work with AI agents more convenient.
+
+Instead of keeping project state trapped in chat, you can give the agent a skill that uses this CLI and let it:
+
+- inspect project status
+- create ideas, features, tasks, and decisions
+- move tasks through backlog, active, and done
+- answer "where are we?" style questions from actual project data
+
+This repo now includes a [`SKILL.md`](./SKILL.md) you can drop into an agent setup so the tool can be used without your constant involvement.
+
 ## Install
 
 ```bash
-go install github.com/ula-t/pai@latest
+go install github.com/lazycoder9/pai@latest
 ```
 
 Or build it locally:
 
 ```bash
+git clone https://github.com/lazycoder9/pai.git
+cd pai
 go build -o pai .
 ```
 

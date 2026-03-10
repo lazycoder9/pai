@@ -1,6 +1,6 @@
 package main
 
-import "github.com/ula-t/pai/cmd"
+import "github.com/lazycoder9/pai/cmd"
 
 func main() {
 	cmd.Execute()

@@ -3,8 +3,8 @@ package cmd
 import (
 	"os"
 
+	"github.com/lazycoder9/pai/internal"
 	"github.com/spf13/cobra"
-	"github.com/ula-t/pai/internal"
 )
 
 func init() {
@@ -82,5 +82,3 @@ func init() {
 
 	rootCmd.AddCommand(getCmd)
 }
-
-

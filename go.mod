@@ -1,4 +1,4 @@
-module github.com/ula-t/pai
+module github.com/lazycoder9/pai
 
 go 1.23.2
 
