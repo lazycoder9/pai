@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -31,109 +32,65 @@ func PrintEntity(e *Entity, verbose bool) {
 }
 
 func PrintEntityFull(e *Entity) {
-	fmt.Printf("id: %s\n", e.ID)
-	fmt.Printf("type: %s\n", e.Type)
-	if e.Status != "" {
-		fmt.Printf("status: %s\n", e.Status)
-	}
-	if e.Parent != "" {
-		fmt.Printf("parent: %s\n", e.Parent)
-	}
-	if len(e.Tags) > 0 {
-		fmt.Printf("tags: %s\n", strings.Join(e.Tags, ", "))
-	}
-	if e.Priority != "" {
-		fmt.Printf("priority: %s\n", e.Priority)
-	}
-	for k, v := range e.Extra {
-		fmt.Printf("%s: %s\n", k, v)
-	}
-	if e.Body != "" {
-		fmt.Println("---")
-		fmt.Println()
-		fmt.Print(e.Body)
-	}
+	fmt.Println(formatEntityLine(e, true, false))
+	printEntityMetadata(e)
+	printEntityBody(e)
 }
 
 func PrintEntityWithRelated(e *Entity, related []*Entity) {
-	fmt.Println("=== Entity ===")
 	PrintEntityFull(e)
-	fmt.Println()
 
 	if len(related) == 0 {
 		return
 	}
 
-	// Split related into ancestors and descendants
-	var ancestors, descendants []*Entity
-	foundSelf := false
+	entities := map[string]*Entity{
+		e.ID: e,
+	}
 	for _, r := range related {
-		if r.ID == e.ID {
-			foundSelf = true
-			continue
-		}
-		_ = foundSelf // ancestors come before in the slice, descendants after
-	}
-	// Related is ordered: ancestors first, then descendants
-	// Find the split point by checking parent chain
-	for _, r := range related {
-		if isAncestor(r, e, related) {
-			ancestors = append(ancestors, r)
-		} else {
-			descendants = append(descendants, r)
-		}
+		entities[r.ID] = r
 	}
 
-	if len(ancestors) > 0 {
-		fmt.Println("=== Parent Chain ===")
-		for _, a := range ancestors {
-			PrintEntity(a, false)
-		}
-		fmt.Println()
-	}
-
-	if len(descendants) > 0 {
-		fmt.Println("=== Children ===")
-		for _, d := range descendants {
-			PrintEntity(d, false)
-		}
-		fmt.Println()
-	}
-}
-
-func isAncestor(candidate, target *Entity, all []*Entity) bool {
-	current := target
-	for current.Parent != "" {
-		if current.Parent == candidate.ID {
-			return true
-		}
-		// Find parent in all
-		found := false
-		for _, e := range all {
-			if e.ID == current.Parent {
-				current = e
-				found = true
-				break
-			}
-		}
-		if !found {
+	root := e
+	for root.Parent != "" {
+		parent, ok := entities[root.Parent]
+		if !ok {
 			break
 		}
+		root = parent
 	}
-	return false
+
+	childMap := make(map[string][]*Entity)
+	for _, candidate := range entities {
+		if candidate.Parent == "" {
+			continue
+		}
+		if _, ok := entities[candidate.Parent]; !ok {
+			continue
+		}
+		childMap[candidate.Parent] = append(childMap[candidate.Parent], candidate)
+	}
+
+	for parentID := range childMap {
+		sortEntities(childMap[parentID])
+	}
+
+	fmt.Printf("\n%s── Context ──%s\n", colorDim, colorReset)
+	printContextNode(root, childMap, "", true, e.ID)
 }
 
 // ANSI color helpers
 const (
-	colorReset  = "\033[0m"
-	colorDim    = "\033[2m"
-	colorBold   = "\033[1m"
-	colorCyan   = "\033[36m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorBlue   = "\033[34m"
-	colorMagenta = "\033[35m"
-	colorWhite  = "\033[37m"
+	colorReset    = "\033[0m"
+	colorDim      = "\033[2m"
+	colorBold     = "\033[1m"
+	colorCyan     = "\033[36m"
+	colorHiYellow = "\033[93m"
+	colorGreen    = "\033[32m"
+	colorYellow   = "\033[33m"
+	colorBlue     = "\033[34m"
+	colorMagenta  = "\033[35m"
+	colorWhite    = "\033[37m"
 )
 
 func typeIcon(t string) string {
@@ -167,6 +124,97 @@ func statusStyle(status string) string {
 		return colorGreen + status + colorReset
 	default:
 		return status
+	}
+}
+
+func formatEntityLine(e *Entity, emphasizeName bool, markCurrent bool) string {
+	icon := typeIcon(e.Type)
+	name := e.ID
+	if markCurrent {
+		name = colorHiYellow + colorBold + e.ID + colorReset
+	} else if emphasizeName {
+		name = colorBold + e.ID + colorReset
+	}
+
+	line := fmt.Sprintf("%s %s", icon, name)
+	if e.Status != "" {
+		line += " " + statusStyle(e.Status)
+	}
+	if markCurrent {
+		line = colorHiYellow + "→ " + colorReset + line
+	}
+
+	return line
+}
+
+func printEntityMetadata(e *Entity) {
+	printMetaLine("type", e.Type)
+	if e.FilePath != "" {
+		printMetaLine("path", e.FilePath)
+	}
+	if e.Parent != "" {
+		printMetaLine("parent", e.Parent)
+	}
+	if len(e.Tags) > 0 {
+		printMetaLine("tags", strings.Join(e.Tags, ", "))
+	}
+	if e.Priority != "" {
+		printMetaLine("priority", e.Priority)
+	}
+
+	keys := make([]string, 0, len(e.Extra))
+	for k := range e.Extra {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		printMetaLine(k, e.Extra[k])
+	}
+}
+
+func printMetaLine(label, value string) {
+	fmt.Printf("  %s%-8s%s %s\n", colorDim, label+":", colorReset, value)
+}
+
+func printEntityBody(e *Entity) {
+	if strings.TrimSpace(e.Body) == "" {
+		return
+	}
+
+	fmt.Printf("\n%s── Notes ──%s\n", colorDim, colorReset)
+	lines := strings.Split(strings.TrimRight(e.Body, "\n"), "\n")
+	for _, line := range lines {
+		if line == "" {
+			fmt.Println()
+			continue
+		}
+		fmt.Printf("  %s\n", line)
+	}
+}
+
+func sortEntities(entities []*Entity) {
+	sort.Slice(entities, func(i, j int) bool {
+		left := entities[i]
+		right := entities[j]
+		if entityTypeOrder(left.Type) != entityTypeOrder(right.Type) {
+			return entityTypeOrder(left.Type) < entityTypeOrder(right.Type)
+		}
+		return left.ID < right.ID
+	})
+}
+
+func entityTypeOrder(entityType string) int {
+	switch entityType {
+	case "idea":
+		return 0
+	case "feature":
+		return 1
+	case "task":
+		return 2
+	case "decision":
+		return 3
+	default:
+		return 4
 	}
 }
 
@@ -327,5 +375,37 @@ func printTreeChildNode(e *Entity, childMap map[string][]*Entity, line, prefix s
 			childPrefix = prefix + "    "
 		}
 		printTreeChildNode(child, childMap, prefix+connector, childPrefix, printed)
+	}
+}
+
+func printContextNode(e *Entity, childMap map[string][]*Entity, prefix string, emphasizeName bool, currentID string) {
+	fmt.Printf("%s%s\n", prefix, formatEntityLine(e, emphasizeName, e.ID == currentID))
+
+	children := childMap[e.ID]
+	for i, child := range children {
+		isLast := i == len(children)-1
+		connector := "├── "
+		childPrefix := prefix + "│   "
+		if isLast {
+			connector = "└── "
+			childPrefix = prefix + "    "
+		}
+		printContextChildNode(child, childMap, prefix+connector, childPrefix, currentID)
+	}
+}
+
+func printContextChildNode(e *Entity, childMap map[string][]*Entity, line, prefix string, currentID string) {
+	fmt.Printf("%s%s\n", line, formatEntityLine(e, false, e.ID == currentID))
+
+	children := childMap[e.ID]
+	for i, child := range children {
+		isLast := i == len(children)-1
+		connector := "├── "
+		childPrefix := prefix + "│   "
+		if isLast {
+			connector = "└── "
+			childPrefix = prefix + "    "
+		}
+		printContextChildNode(child, childMap, prefix+connector, childPrefix, currentID)
 	}
 }
