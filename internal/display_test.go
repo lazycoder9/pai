@@ -13,10 +13,11 @@ var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 func TestPrintEntityFull(t *testing.T) {
 	entity := &Entity{
-		ID:       "detail-view",
+		ID:       "F-3",
+		Slug:     "detail-view",
 		Type:     "feature",
 		Status:   "spec",
-		Parent:   "improve-status",
+		ParentID: "I-2",
 		Tags:     []string{"cli", "ux"},
 		Priority: "high",
 		Extra: map[string]string{
@@ -24,7 +25,7 @@ func TestPrintEntityFull(t *testing.T) {
 			"severity": "medium",
 		},
 		Body:     "Make `pai get` easier to scan.\n\nKeep metadata visible.",
-		FilePath: "features/detail-view.md",
+		FilePath: "features/F-3-detail-view.md",
 	}
 
 	output := captureStdout(t, func() {
@@ -32,15 +33,17 @@ func TestPrintEntityFull(t *testing.T) {
 	})
 	output = stripANSI(output)
 
-	assertContains(t, output, "🔧 detail-view spec")
-	assertContains(t, output, "  type:    feature")
-	assertContains(t, output, "  path:    features/detail-view.md")
-	assertContains(t, output, "  parent:  improve-status")
-	assertContains(t, output, "  tags:    cli, ux")
-	assertContains(t, output, "  priority: high")
+	assertContains(t, output, "🔧 F-3 detail-view spec")
+	assertContains(t, output, "  id:        F-3")
+	assertContains(t, output, "  slug:      detail-view")
+	assertContains(t, output, "  type:      feature")
+	assertContains(t, output, "  path:      features/F-3-detail-view.md")
+	assertContains(t, output, "  parent_id: I-2")
+	assertContains(t, output, "  tags:      cli, ux")
+	assertContains(t, output, "  priority:  high")
 
-	ownerIndex := strings.Index(output, "  owner:   alice")
-	severityIndex := strings.Index(output, "  severity: medium")
+	ownerIndex := strings.Index(output, "  owner:     alice")
+	severityIndex := strings.Index(output, "  severity:  medium")
 	if ownerIndex == -1 || severityIndex == -1 {
 		t.Fatalf("expected sorted extra metadata in output:\n%s", output)
 	}
@@ -54,16 +57,17 @@ func TestPrintEntityFull(t *testing.T) {
 }
 
 func TestPrintEntityWithRelatedShowsContextTree(t *testing.T) {
-	idea := &Entity{ID: "improve-status", Type: "idea", Status: "raw"}
+	idea := &Entity{ID: "I-2", Slug: "improve-status", Type: "idea", Status: "raw"}
 	feature := &Entity{
-		ID:       "detail-view",
+		ID:       "F-3",
+		Slug:     "detail-view",
 		Type:     "feature",
 		Status:   "spec",
-		Parent:   "improve-status",
-		FilePath: "features/detail-view.md",
+		ParentID: "I-2",
+		FilePath: "features/F-3-detail-view.md",
 	}
-	task := &Entity{ID: "renderer-tests", Type: "task", Status: "active", Parent: "detail-view"}
-	subtask := &Entity{ID: "manual-check", Type: "task", Status: "backlog", Parent: "renderer-tests"}
+	task := &Entity{ID: "T-8", Slug: "renderer-tests", Type: "task", Status: "active", ParentID: "F-3"}
+	subtask := &Entity{ID: "T-9", Slug: "manual-check", Type: "task", Status: "backlog", ParentID: "T-8"}
 
 	output := captureStdout(t, func() {
 		PrintEntityWithRelated(feature, []*Entity{idea, task, subtask})
@@ -71,10 +75,10 @@ func TestPrintEntityWithRelatedShowsContextTree(t *testing.T) {
 	output = stripANSI(output)
 
 	assertContains(t, output, "── Context ──")
-	assertContains(t, output, "💡 improve-status raw")
-	assertContains(t, output, "└── → 🔧 detail-view spec")
-	assertContains(t, output, "    └── 📌 renderer-tests active")
-	assertContains(t, output, "        └── 📌 manual-check backlog")
+	assertContains(t, output, "💡 I-2 improve-status raw")
+	assertContains(t, output, "└── → 🔧 F-3 detail-view spec")
+	assertContains(t, output, "    └── 📌 T-8 renderer-tests active")
+	assertContains(t, output, "        └── 📌 T-9 manual-check backlog")
 }
 
 func captureStdout(t *testing.T, fn func()) string {

@@ -56,19 +56,16 @@ func Init(dir, name string) error {
 		}
 	}
 
-	// context.md
 	if err := os.WriteFile(filepath.Join(base, "context.md"), []byte("# "+name+"\n\nProject overview for agents.\n"), 0o644); err != nil {
 		return err
 	}
-	// architecture.md
 	if err := os.WriteFile(filepath.Join(base, "architecture.md"), []byte("# Architecture\n\nTechnical architecture decisions.\n"), 0o644); err != nil {
 		return err
 	}
-	// roadmap.md
 	if err := os.WriteFile(filepath.Join(base, "roadmap.md"), []byte("# Roadmap\n\nHigh-level project direction.\n"), 0o644); err != nil {
 		return err
 	}
-	// state.json
+
 	state := ProjectState{
 		Project:   name,
 		CreatedAt: time.Now().Format(time.RFC3339),
@@ -83,7 +80,7 @@ func Init(dir, name string) error {
 
 // SaveEntity writes an entity to the correct location
 func SaveEntity(root string, e *Entity) error {
-	relPath := EntityPath(e.Type, e.ID, e.Status)
+	relPath := EntityPath(e.Type, e.ID, e.Slug, e.Status)
 	fullPath := filepath.Join(PaiPath(root), relPath)
 
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
@@ -94,70 +91,61 @@ func SaveEntity(root string, e *Entity) error {
 	return os.WriteFile(fullPath, []byte(e.Serialize()), 0o644)
 }
 
-// FindEntity finds an entity by slug across all type directories
-func FindEntity(root, slug string) (*Entity, error) {
-	base := PaiPath(root)
-	var found *Entity
+func findByRef(entities []*Entity, ref string) (*Entity, error) {
+	var slugMatches []*Entity
 
-	err := filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
-			return err
+	for _, e := range entities {
+		if e.ID == ref {
+			return e, nil
 		}
-		// Skip top-level md files (context.md, architecture.md, roadmap.md)
-		rel, _ := filepath.Rel(base, path)
-		if !strings.Contains(rel, string(filepath.Separator)) {
-			return nil
+	}
+	for _, e := range entities {
+		if e.Slug == ref {
+			slugMatches = append(slugMatches, e)
 		}
+	}
 
-		e, parseErr := ParseFile(path)
-		if parseErr != nil {
-			return nil
-		}
-		if e.ID == slug {
-			e.FilePath = rel
-			found = e
-			return filepath.SkipAll
-		}
-		return nil
-	})
+	if len(slugMatches) == 1 {
+		return slugMatches[0], nil
+	}
+	if len(slugMatches) > 1 {
+		return nil, fmt.Errorf("reference %q is ambiguous; use a typed id or specify the entity type", ref)
+	}
+	return nil, nil
+}
+
+// FindEntity finds an entity by id or slug across all type directories
+func FindEntity(root, ref string) (*Entity, error) {
+	entities, err := ListEntities(root, "", "", "")
 	if err != nil {
 		return nil, err
 	}
-	if found == nil {
-		return nil, fmt.Errorf("entity %q not found", slug)
-	}
-	return found, nil
-}
 
-// FindEntityByType finds an entity by slug within a specific type directory
-func FindEntityByType(root, entityType, slug string) (*Entity, error) {
-	base := PaiPath(root)
-	dir := filepath.Join(base, TypeDir(entityType))
-
-	var found *Entity
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
-			return err
-		}
-		e, parseErr := ParseFile(path)
-		if parseErr != nil {
-			return nil
-		}
-		if e.ID == slug {
-			rel, _ := filepath.Rel(base, path)
-			e.FilePath = rel
-			found = e
-			return filepath.SkipAll
-		}
-		return nil
-	})
-	if err != nil && !os.IsNotExist(err) {
+	match, err := findByRef(entities, ref)
+	if err != nil {
 		return nil, err
 	}
-	if found == nil {
-		return nil, fmt.Errorf("%s %q not found", entityType, slug)
+	if match == nil {
+		return nil, fmt.Errorf("entity %q not found", ref)
 	}
-	return found, nil
+	return match, nil
+}
+
+// FindEntityByType finds an entity by id or slug within a specific type directory
+func FindEntityByType(root, entityType, ref string) (*Entity, error) {
+	entities, err := ListEntities(root, entityType, "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	match, err := findByRef(entities, ref)
+	if err != nil {
+		return nil, err
+	}
+	if match == nil {
+		return nil, fmt.Errorf("%s %q not found", entityType, ref)
+	}
+	return match, nil
 }
 
 // ListEntities lists all entities, optionally filtered
@@ -177,7 +165,6 @@ func ListEntities(root, entityType, status, tag string) ([]*Entity, error) {
 			return err
 		}
 		rel, _ := filepath.Rel(base, path)
-		// Skip top-level files when listing all
 		if entityType == "" && !strings.Contains(rel, string(filepath.Separator)) {
 			return nil
 		}
@@ -201,6 +188,8 @@ func ListEntities(root, entityType, status, tag string) ([]*Entity, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
+
+	SortEntities(entities)
 	return entities, nil
 }
 
@@ -213,6 +202,45 @@ func hasTag(tags []string, tag string) bool {
 	return false
 }
 
+func NextEntityID(root, entityType string) (string, error) {
+	entities, err := ListEntities(root, entityType, "", "")
+	if err != nil {
+		return "", err
+	}
+
+	prefix := EntityPrefix(entityType)
+	maxNumber := 0
+	for _, e := range entities {
+		entityPrefix, number, ok := parseEntitySequence(e.ID)
+		if !ok || entityPrefix != prefix {
+			continue
+		}
+		if number > maxNumber {
+			maxNumber = number
+		}
+	}
+
+	return fmt.Sprintf("%s-%d", prefix, maxNumber+1), nil
+}
+
+func EnsureUniqueSlug(root, entityType, slug, excludeID string) error {
+	entities, err := ListEntities(root, entityType, "", "")
+	if err != nil {
+		return err
+	}
+
+	for _, existing := range entities {
+		if existing.ID == excludeID {
+			continue
+		}
+		if existing.Slug == slug {
+			return fmt.Errorf("%s slug %q already exists", entityType, slug)
+		}
+	}
+
+	return nil
+}
+
 // DeleteEntity removes an entity file
 func DeleteEntity(root string, e *Entity) error {
 	fullPath := filepath.Join(PaiPath(root), e.FilePath)
@@ -223,7 +251,7 @@ func DeleteEntity(root string, e *Entity) error {
 func MoveTask(root string, e *Entity, newStatus string) error {
 	oldPath := filepath.Join(PaiPath(root), e.FilePath)
 	e.Status = newStatus
-	newRel := EntityPath(e.Type, e.ID, newStatus)
+	newRel := EntityPath(e.Type, e.ID, e.Slug, newStatus)
 	newPath := filepath.Join(PaiPath(root), newRel)
 
 	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
@@ -234,51 +262,47 @@ func MoveTask(root string, e *Entity, newStatus string) error {
 	if err := os.WriteFile(newPath, []byte(data), 0o644); err != nil {
 		return err
 	}
-	os.Remove(oldPath)
+	_ = os.Remove(oldPath)
 	e.FilePath = newRel
 	return nil
 }
 
 // GetRelated finds all entities related to the given one (up and down the chain)
 func GetRelated(root string, e *Entity) ([]*Entity, error) {
-	var related []*Entity
-
-	// Traverse UP: follow parent chain
-	current := e
-	for current.Parent != "" {
-		parent, err := FindEntity(root, current.Parent)
-		if err != nil {
-			break
-		}
-		related = append([]*Entity{parent}, related...)
-		current = parent
-	}
-
-	// Traverse DOWN: find children
-	children, err := findChildren(root, e.ID)
-	if err == nil {
-		related = append(related, children...)
-	}
-
-	return related, nil
-}
-
-func findChildren(root, parentID string) ([]*Entity, error) {
 	all, err := ListEntities(root, "", "", "")
 	if err != nil {
 		return nil, err
 	}
 
-	var children []*Entity
-	for _, e := range all {
-		if e.Parent == parentID {
-			children = append(children, e)
-			// Recurse
-			grandchildren, err := findChildren(root, e.ID)
-			if err == nil {
-				children = append(children, grandchildren...)
+	childMap := buildChildMap(all)
+	var related []*Entity
+	seen := map[string]bool{
+		e.ID: true,
+	}
+
+	current := e
+	for current.ParentID != "" {
+		parent := lookupEntityByRef(all, current.ParentID)
+		if parent == nil || seen[parent.ID] {
+			break
+		}
+		related = append([]*Entity{parent}, related...)
+		seen[parent.ID] = true
+		current = parent
+	}
+
+	var walkChildren func(parentID string)
+	walkChildren = func(parentID string) {
+		for _, child := range childMap[parentID] {
+			if seen[child.ID] {
+				continue
 			}
+			related = append(related, child)
+			seen[child.ID] = true
+			walkChildren(child.ID)
 		}
 	}
-	return children, nil
+	walkChildren(e.ID)
+
+	return related, nil
 }

@@ -4,17 +4,16 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
-	"time"
 )
 
 type Entity struct {
 	// Parsed metadata
 	ID       string
+	Slug     string
 	Type     string // idea, feature, task, decision
 	Status   string
-	Parent   string
+	ParentID string
 	Tags     []string
 	Priority string
 
@@ -29,8 +28,8 @@ type Entity struct {
 }
 
 var knownFields = map[string]bool{
-	"id": true, "type": true, "status": true,
-	"parent": true, "tags": true, "priority": true,
+	"id": true, "slug": true, "type": true, "status": true,
+	"parent": true, "parent_id": true, "tags": true, "priority": true,
 }
 
 func ParseFile(path string) (*Entity, error) {
@@ -66,12 +65,18 @@ func Parse(content string, filePath string) (*Entity, error) {
 		switch key {
 		case "id":
 			e.ID = val
+		case "slug":
+			e.Slug = val
 		case "type":
 			e.Type = val
 		case "status":
 			e.Status = val
+		case "parent_id":
+			e.ParentID = val
 		case "parent":
-			e.Parent = val
+			if e.ParentID == "" {
+				e.ParentID = val
+			}
 		case "tags":
 			for _, t := range strings.Split(val, ",") {
 				t = strings.TrimSpace(t)
@@ -84,6 +89,13 @@ func Parse(content string, filePath string) (*Entity, error) {
 		default:
 			e.Extra[key] = val
 		}
+	}
+
+	if e.Slug == "" {
+		e.Slug = e.ID
+	}
+	if e.ID == "" {
+		e.ID = e.Slug
 	}
 
 	return e, nil
@@ -105,14 +117,17 @@ func (e *Entity) Serialize() string {
 	if e.ID != "" {
 		fmt.Fprintf(&b, "id: %s\n", e.ID)
 	}
+	if e.Slug != "" {
+		fmt.Fprintf(&b, "slug: %s\n", e.Slug)
+	}
 	if e.Type != "" {
 		fmt.Fprintf(&b, "type: %s\n", e.Type)
 	}
 	if e.Status != "" {
 		fmt.Fprintf(&b, "status: %s\n", e.Status)
 	}
-	if e.Parent != "" {
-		fmt.Fprintf(&b, "parent: %s\n", e.Parent)
+	if e.ParentID != "" {
+		fmt.Fprintf(&b, "parent_id: %s\n", e.ParentID)
 	}
 	if len(e.Tags) > 0 {
 		fmt.Fprintf(&b, "tags: %s\n", strings.Join(e.Tags, ", "))
@@ -174,21 +189,4 @@ func TaskStatusDir(status string) string {
 	default:
 		return "backlog"
 	}
-}
-
-func GenerateDecisionSlug(title string) string {
-	date := time.Now().Format("2006-01-02")
-	slug := strings.ToLower(title)
-	slug = strings.ReplaceAll(slug, " ", "-")
-	return date + "-" + slug
-}
-
-// EntityPath returns the file path for an entity relative to .pai/
-func EntityPath(entityType, slug, status string) string {
-	dir := TypeDir(entityType)
-	if entityType == "task" {
-		subdir := TaskStatusDir(status)
-		return filepath.Join(dir, subdir, slug+".md")
-	}
-	return filepath.Join(dir, slug+".md")
 }

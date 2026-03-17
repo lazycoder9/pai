@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/lazycoder9/pai/internal"
 	"github.com/spf13/cobra"
@@ -19,38 +20,39 @@ func init() {
 	for _, t := range types {
 		entityType := t
 		cmd := &cobra.Command{
-			Use:   entityType + " <slug>",
+			Use:   entityType + " <ref>",
 			Short: "Edit a " + entityType,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				slug := args[0]
+				ref := args[0]
 				dir, _ := os.Getwd()
 				root, err := internal.FindRoot(dir)
 				if err != nil {
 					return err
 				}
 
-				e, err := internal.FindEntityByType(root, entityType, slug)
+				e, err := internal.FindEntityByType(root, entityType, ref)
 				if err != nil {
 					return err
 				}
 
-				// Delete old file first (path may change for tasks)
 				oldPath := e.FilePath
 
-				if s, _ := cmd.Flags().GetString("status"); s != "" {
-					if entityType == "task" {
-						// Tasks need to move between directories
-						if err := internal.MoveTask(root, e, s); err != nil {
-							return err
-						}
-						fmt.Printf("Updated %s %s (status: %s)\n", entityType, slug, s)
-						return nil
+				if slug, _ := cmd.Flags().GetString("slug"); slug != "" {
+					if entityType == "decision" {
+						slug = internal.Slugify(slug)
 					}
-					e.Status = s
+					if err := internal.EnsureUniqueSlug(root, entityType, slug, e.ID); err != nil {
+						return err
+					}
+					e.Slug = slug
 				}
 				if p, _ := cmd.Flags().GetString("parent"); p != "" {
-					e.Parent = p
+					parentEntity, err := internal.FindEntity(root, p)
+					if err != nil {
+						return err
+					}
+					e.ParentID = parentEntity.ID
 				}
 				if t, _ := cmd.Flags().GetString("tags"); t != "" {
 					e.Tags = nil
@@ -67,17 +69,30 @@ func init() {
 					e.Body = s
 				}
 
-				// Remove old file if path changed
-				_ = oldPath
+				if s, _ := cmd.Flags().GetString("status"); s != "" {
+					if entityType == "task" {
+						if err := internal.MoveTask(root, e, s); err != nil {
+							return err
+						}
+						fmt.Printf("Updated %s: %s\n", entityType, e.DisplayName())
+						return nil
+					}
+					e.Status = s
+				}
+
 				if err := internal.SaveEntity(root, e); err != nil {
 					return err
 				}
-				fmt.Printf("Updated %s: %s\n", entityType, slug)
+				if oldPath != "" && oldPath != e.FilePath {
+					_ = os.Remove(filepath.Join(internal.PaiPath(root), oldPath))
+				}
+				fmt.Printf("Updated %s: %s\n", entityType, e.DisplayName())
 				return nil
 			},
 		}
 		cmd.Flags().String("status", "", "New status")
-		cmd.Flags().String("parent", "", "New parent slug")
+		cmd.Flags().String("slug", "", "New slug")
+		cmd.Flags().String("parent", "", "New parent id or slug")
 		cmd.Flags().String("tags", "", "New tags (comma-separated, replaces existing)")
 		cmd.Flags().String("priority", "", "New priority")
 		cmd.Flags().String("body", "", "New body content")

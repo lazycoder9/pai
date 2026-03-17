@@ -45,6 +45,13 @@ idea -> feature -> task
 
 That means you can inspect it, edit it, diff it, and commit it like normal project files instead of hiding everything inside some tool.
 
+Each entity now has:
+
+- a typed ID like `T-12` or `I-2`
+- a human slug like `auth-login`
+
+`pai` shows both, stores both, and lets you look items up by either one.
+
 ## Why it exists
 
 AI-assisted work has a memory problem.
@@ -103,35 +110,35 @@ pai status
 Example output:
 
 ```text
-💡 inbox-zero-for-agents raw
-└── 🔧 lightweight-project-memory spec
-    └── 📌 scaffold-pai-folder backlog
+💡 I-1 inbox-zero-for-agents raw
+└── 🔧 F-1 lightweight-project-memory spec
+    └── 📌 T-1 scaffold-pai-folder backlog
 ```
 
 Inspect an item:
 
 ```bash
-pai get task scaffold-pai-folder
+pai get task T-1
 ```
 
 Move the task forward:
 
 ```bash
-pai start scaffold-pai-folder
-pai complete scaffold-pai-folder
+pai start T-1
+pai complete T-1
 ```
 
 ## Commands
 
 - `pai init` creates a `.pai/` workspace
-- `pai add idea|feature|task|decision <slug>` creates an item
+- `pai add idea|feature|task|decision <slug>` creates an item with an auto-generated typed ID
 - `pai edit ...` updates metadata or content
 - `pai delete ...` removes an item
 - `pai list ideas|features|tasks|decisions` lists items with filters
-- `pai get <slug>` or `pai get <type> <slug>` shows item details
+- `pai get <ref>` or `pai get <type> <ref>` shows item details by ID or slug
 - `pai status` prints the project tree
-- `pai start <task>` moves a task to `active`
-- `pai complete <task>` moves a task to `done`
+- `pai start <task-ref>` moves a task to `active`
+- `pai complete <task-ref>` moves a task to `done`
 
 ## Notes
 

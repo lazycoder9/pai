@@ -19,18 +19,18 @@ func init() {
 	for _, t := range types {
 		entityType := t
 		cmd := &cobra.Command{
-			Use:   entityType + " <slug>",
+			Use:   entityType + " <ref>",
 			Short: "Delete a " + entityType,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				slug := args[0]
+				ref := args[0]
 				dir, _ := os.Getwd()
 				root, err := internal.FindRoot(dir)
 				if err != nil {
 					return err
 				}
 
-				e, err := internal.FindEntityByType(root, entityType, slug)
+				e, err := internal.FindEntityByType(root, entityType, ref)
 				if err != nil {
 					return err
 				}
@@ -38,7 +38,7 @@ func init() {
 				if err := internal.DeleteEntity(root, e); err != nil {
 					return err
 				}
-				fmt.Printf("Deleted %s: %s\n", entityType, slug)
+				fmt.Printf("Deleted %s: %s\n", entityType, e.DisplayName())
 				return nil
 			},
 		}

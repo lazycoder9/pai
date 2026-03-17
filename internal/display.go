@@ -7,7 +7,7 @@ import (
 )
 
 func PrintEntity(e *Entity, verbose bool) {
-	fmt.Printf("  %s (%s)", e.ID, e.Type)
+	fmt.Printf("  %s (%s)", e.DisplayName(), e.Type)
 	if e.Status != "" {
 		fmt.Printf(" [%s]", e.Status)
 	}
@@ -17,8 +17,8 @@ func PrintEntity(e *Entity, verbose bool) {
 	if len(e.Tags) > 0 {
 		fmt.Printf(" tags:%s", strings.Join(e.Tags, ","))
 	}
-	if e.Parent != "" {
-		fmt.Printf(" parent:%s", e.Parent)
+	if e.ParentID != "" {
+		fmt.Printf(" parent:%s", e.ParentID)
 	}
 	fmt.Println()
 
@@ -51,29 +51,21 @@ func PrintEntityWithRelated(e *Entity, related []*Entity) {
 		entities[r.ID] = r
 	}
 
+	entityList := make([]*Entity, 0, len(entities))
+	for _, candidate := range entities {
+		entityList = append(entityList, candidate)
+	}
+
 	root := e
-	for root.Parent != "" {
-		parent, ok := entities[root.Parent]
-		if !ok {
+	for root.ParentID != "" {
+		parent := lookupEntityByRef(entityList, root.ParentID)
+		if parent == nil {
 			break
 		}
 		root = parent
 	}
 
-	childMap := make(map[string][]*Entity)
-	for _, candidate := range entities {
-		if candidate.Parent == "" {
-			continue
-		}
-		if _, ok := entities[candidate.Parent]; !ok {
-			continue
-		}
-		childMap[candidate.Parent] = append(childMap[candidate.Parent], candidate)
-	}
-
-	for parentID := range childMap {
-		sortEntities(childMap[parentID])
-	}
+	childMap := buildChildMap(entityList)
 
 	fmt.Printf("\n%s── Context ──%s\n", colorDim, colorReset)
 	printContextNode(root, childMap, "", true, e.ID)
@@ -129,11 +121,11 @@ func statusStyle(status string) string {
 
 func formatEntityLine(e *Entity, emphasizeName bool, markCurrent bool) string {
 	icon := typeIcon(e.Type)
-	name := e.ID
+	name := e.DisplayName()
 	if markCurrent {
-		name = colorHiYellow + colorBold + e.ID + colorReset
+		name = colorHiYellow + colorBold + e.DisplayName() + colorReset
 	} else if emphasizeName {
-		name = colorBold + e.ID + colorReset
+		name = colorBold + e.DisplayName() + colorReset
 	}
 
 	line := fmt.Sprintf("%s %s", icon, name)
@@ -148,12 +140,16 @@ func formatEntityLine(e *Entity, emphasizeName bool, markCurrent bool) string {
 }
 
 func printEntityMetadata(e *Entity) {
+	printMetaLine("id", e.ID)
+	if e.Slug != "" {
+		printMetaLine("slug", e.Slug)
+	}
 	printMetaLine("type", e.Type)
 	if e.FilePath != "" {
 		printMetaLine("path", e.FilePath)
 	}
-	if e.Parent != "" {
-		printMetaLine("parent", e.Parent)
+	if e.ParentID != "" {
+		printMetaLine("parent_id", e.ParentID)
 	}
 	if len(e.Tags) > 0 {
 		printMetaLine("tags", strings.Join(e.Tags, ", "))
@@ -173,7 +169,7 @@ func printEntityMetadata(e *Entity) {
 }
 
 func printMetaLine(label, value string) {
-	fmt.Printf("  %s%-8s%s %s\n", colorDim, label+":", colorReset, value)
+	fmt.Printf("  %s%-10s%s %s\n", colorDim, label+":", colorReset, value)
 }
 
 func printEntityBody(e *Entity) {
@@ -189,32 +185,6 @@ func printEntityBody(e *Entity) {
 			continue
 		}
 		fmt.Printf("  %s\n", line)
-	}
-}
-
-func sortEntities(entities []*Entity) {
-	sort.Slice(entities, func(i, j int) bool {
-		left := entities[i]
-		right := entities[j]
-		if entityTypeOrder(left.Type) != entityTypeOrder(right.Type) {
-			return entityTypeOrder(left.Type) < entityTypeOrder(right.Type)
-		}
-		return left.ID < right.ID
-	})
-}
-
-func entityTypeOrder(entityType string) int {
-	switch entityType {
-	case "idea":
-		return 0
-	case "feature":
-		return 1
-	case "task":
-		return 2
-	case "decision":
-		return 3
-	default:
-		return 4
 	}
 }
 
@@ -236,9 +206,7 @@ func allLeafsDone(e *Entity, childMap map[string][]*Entity) bool {
 
 // PrintTree prints a tree view of all entities grouped by type
 func PrintTree(ideas, features, tasks, decisions []*Entity) {
-	// Build parent->children map
-	childMap := make(map[string][]*Entity)
-	topLevel := make(map[string][]*Entity) // type -> top-level entities
+	topLevel := make(map[string][]*Entity)
 
 	all := make([]*Entity, 0)
 	all = append(all, ideas...)
@@ -246,17 +214,18 @@ func PrintTree(ideas, features, tasks, decisions []*Entity) {
 	all = append(all, tasks...)
 	all = append(all, decisions...)
 
+	childMap := buildChildMap(all)
 	for _, e := range all {
-		if e.Parent != "" {
-			childMap[e.Parent] = append(childMap[e.Parent], e)
-		} else {
+		if canonicalParentID(e, all) == "" {
 			topLevel[e.Type] = append(topLevel[e.Type], e)
 		}
+	}
+	for entityType := range topLevel {
+		SortEntities(topLevel[entityType])
 	}
 
 	printed := make(map[string]bool)
 
-	// Ideas (and their children)
 	if len(topLevel["idea"]) > 0 {
 		first := true
 		for _, e := range topLevel["idea"] {
@@ -267,11 +236,10 @@ func PrintTree(ideas, features, tasks, decisions []*Entity) {
 				fmt.Println()
 			}
 			first = false
-			printTreeNode(e, childMap, "", true, printed)
+			printTreeNode(e, childMap, "", printed)
 		}
 	}
 
-	// Orphaned features
 	hasOrphans := false
 	for _, e := range topLevel["feature"] {
 		if !printed[e.ID] && !allLeafsDone(e, childMap) {
@@ -279,11 +247,10 @@ func PrintTree(ideas, features, tasks, decisions []*Entity) {
 				fmt.Println()
 				hasOrphans = true
 			}
-			printTreeNode(e, childMap, "", true, printed)
+			printTreeNode(e, childMap, "", printed)
 		}
 	}
 
-	// Orphaned tasks
 	hasOrphans = false
 	for _, e := range topLevel["task"] {
 		if !printed[e.ID] && !allLeafsDone(e, childMap) {
@@ -291,41 +258,37 @@ func PrintTree(ideas, features, tasks, decisions []*Entity) {
 				fmt.Println()
 				hasOrphans = true
 			}
-			printTreeNode(e, childMap, "", true, printed)
+			printTreeNode(e, childMap, "", printed)
 		}
 	}
 
-	// Decisions section
 	if len(topLevel["decision"]) > 0 {
 		fmt.Println()
 		fmt.Printf("%s── Decisions ──%s\n", colorDim, colorReset)
 		for _, e := range topLevel["decision"] {
 			if !printed[e.ID] {
 				printed[e.ID] = true
-				fmt.Printf("  📋 %s%s%s\n", colorDim, e.ID, colorReset)
+				fmt.Printf("  %s\n", formatEntityLine(e, false, false))
 			}
 		}
 	}
 }
 
-func printTreeNode(e *Entity, childMap map[string][]*Entity, prefix string, isRoot bool, printed map[string]bool) {
+func printTreeNode(e *Entity, childMap map[string][]*Entity, prefix string, printed map[string]bool) {
 	if printed[e.ID] {
 		return
 	}
 	printed[e.ID] = true
 
 	icon := typeIcon(e.Type)
-
 	status := ""
 	if e.Status != "" {
 		status = " " + statusStyle(e.Status)
 	}
 
-	name := colorBold + e.ID + colorReset
-
+	name := colorBold + e.DisplayName() + colorReset
 	fmt.Printf("%s%s %s%s\n", prefix, icon, name, status)
 
-	// Filter out children whose subtrees are all done
 	var visible []*Entity
 	for _, child := range childMap[e.ID] {
 		if !allLeafsDone(child, childMap) {
@@ -351,15 +314,13 @@ func printTreeChildNode(e *Entity, childMap map[string][]*Entity, line, prefix s
 	printed[e.ID] = true
 
 	icon := typeIcon(e.Type)
-
 	status := ""
 	if e.Status != "" {
 		status = " " + statusStyle(e.Status)
 	}
 
-	fmt.Printf("%s%s %s%s\n", line, icon, e.ID, status)
+	fmt.Printf("%s%s %s%s\n", line, icon, e.DisplayName(), status)
 
-	// Filter out children whose subtrees are all done
 	var visible []*Entity
 	for _, child := range childMap[e.ID] {
 		if !allLeafsDone(child, childMap) {

@@ -44,11 +44,33 @@ func init() {
 					status = internal.DefaultStatus(entityType)
 				}
 
+				if entityType == "decision" {
+					slug = internal.Slugify(slug)
+				}
+				if err := internal.EnsureUniqueSlug(root, entityType, slug, ""); err != nil {
+					return err
+				}
+
+				id, err := internal.NextEntityID(root, entityType)
+				if err != nil {
+					return err
+				}
+
+				parentID := ""
+				if parent != "" {
+					parentEntity, err := internal.FindEntity(root, parent)
+					if err != nil {
+						return err
+					}
+					parentID = parentEntity.ID
+				}
+
 				e := &internal.Entity{
-					ID:       slug,
+					ID:       id,
+					Slug:     slug,
 					Type:     entityType,
 					Status:   status,
-					Parent:   parent,
+					ParentID: parentID,
 					Priority: priority,
 					Body:     body,
 				}
@@ -59,19 +81,15 @@ func init() {
 					}
 				}
 
-				if entityType == "decision" && slug != "" {
-					e.ID = internal.GenerateDecisionSlug(slug)
-				}
-
 				if err := internal.SaveEntity(root, e); err != nil {
 					return err
 				}
-				fmt.Printf("Created %s: %s\n", entityType, e.ID)
+				fmt.Printf("Created %s: %s\n", entityType, e.DisplayName())
 				return nil
 			},
 		}
 		cmd.Flags().String("status", "", "Status (default depends on type)")
-		cmd.Flags().String("parent", "", "Parent entity slug")
+		cmd.Flags().String("parent", "", "Parent entity id or slug")
 		cmd.Flags().String("tags", "", "Comma-separated tags")
 		cmd.Flags().String("priority", "", "Priority (low, medium, high)")
 		cmd.Flags().String("body", "", "Body content for the entity")

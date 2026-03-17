@@ -10,18 +10,18 @@ import (
 
 func init() {
 	startCmd := &cobra.Command{
-		Use:   "start <slug>",
+		Use:   "start <ref>",
 		Short: "Start a task (move to active)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			slug := args[0]
+			ref := args[0]
 			dir, _ := os.Getwd()
 			root, err := internal.FindRoot(dir)
 			if err != nil {
 				return err
 			}
 
-			e, err := internal.FindEntityByType(root, "task", slug)
+			e, err := internal.FindEntityByType(root, "task", ref)
 			if err != nil {
 				return err
 			}
@@ -29,24 +29,24 @@ func init() {
 			if err := internal.MoveTask(root, e, "active"); err != nil {
 				return err
 			}
-			fmt.Printf("Started task: %s\n", slug)
+			fmt.Printf("Started task: %s\n", e.DisplayName())
 			return nil
 		},
 	}
 
 	completeCmd := &cobra.Command{
-		Use:   "complete <slug>",
+		Use:   "complete <ref>",
 		Short: "Complete a task (move to done)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			slug := args[0]
+			ref := args[0]
 			dir, _ := os.Getwd()
 			root, err := internal.FindRoot(dir)
 			if err != nil {
 				return err
 			}
 
-			e, err := internal.FindEntityByType(root, "task", slug)
+			e, err := internal.FindEntityByType(root, "task", ref)
 			if err != nil {
 				return err
 			}
@@ -54,7 +54,7 @@ func init() {
 			if err := internal.MoveTask(root, e, "done"); err != nil {
 				return err
 			}
-			fmt.Printf("Completed task: %s\n", slug)
+			fmt.Printf("Completed task: %s\n", e.DisplayName())
 			return nil
 		},
 	}

@@ -18,18 +18,18 @@ func init() {
 	for _, t := range types {
 		entityType := t
 		cmd := &cobra.Command{
-			Use:   entityType + " <slug>",
+			Use:   entityType + " <ref>",
 			Short: "Get a " + entityType,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				slug := args[0]
+				ref := args[0]
 				dir, _ := os.Getwd()
 				root, err := internal.FindRoot(dir)
 				if err != nil {
 					return err
 				}
 
-				e, err := internal.FindEntityByType(root, entityType, slug)
+				e, err := internal.FindEntityByType(root, entityType, ref)
 				if err != nil {
 					return err
 				}
@@ -51,17 +51,17 @@ func init() {
 		getCmd.AddCommand(cmd)
 	}
 
-	// Also allow `pai get <slug>` without specifying type
+	// Also allow `pai get <ref>` without specifying type
 	getCmd.Args = cobra.ExactArgs(1)
 	getCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		slug := args[0]
+		ref := args[0]
 		dir, _ := os.Getwd()
 		root, err := internal.FindRoot(dir)
 		if err != nil {
 			return err
 		}
 
-		e, err := internal.FindEntity(root, slug)
+		e, err := internal.FindEntity(root, ref)
 		if err != nil {
 			return err
 		}
