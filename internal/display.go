@@ -37,18 +37,38 @@ func PrintEntityFull(e *Entity) {
 	printEntityBody(e)
 }
 
-func PrintEntityWithRelated(e *Entity, related []*Entity) {
+func PrintEntityWithContext(e *Entity, ctx *EntityContext) {
 	PrintEntityFull(e)
 
-	if len(related) == 0 {
+	if ctx == nil {
 		return
 	}
 
-	entities := map[string]*Entity{
-		e.ID: e,
+	if e.Type == "decision" {
+		printDecisionContext(e, ctx)
+		return
 	}
-	for _, r := range related {
-		entities[r.ID] = r
+
+	printStructuralContext(e, ctx)
+	if len(ctx.RelatedDecisions) > 0 {
+		fmt.Printf("\n%s── Related Decisions ──%s\n", colorDim, colorReset)
+		for _, decision := range ctx.RelatedDecisions {
+			fmt.Printf("  %s\n", formatEntityLine(decision, false, false))
+		}
+	}
+}
+
+func printStructuralContext(e *Entity, ctx *EntityContext) {
+	if len(ctx.Ancestors) == 0 && len(ctx.Descendants) == 0 {
+		return
+	}
+
+	entities := map[string]*Entity{e.ID: e}
+	for _, entity := range ctx.Ancestors {
+		entities[entity.ID] = entity
+	}
+	for _, entity := range ctx.Descendants {
+		entities[entity.ID] = entity
 	}
 
 	entityList := make([]*Entity, 0, len(entities))
@@ -69,6 +89,59 @@ func PrintEntityWithRelated(e *Entity, related []*Entity) {
 
 	fmt.Printf("\n%s── Context ──%s\n", colorDim, colorReset)
 	printContextNode(root, childMap, "", true, e.ID)
+}
+
+func printDecisionContext(e *Entity, ctx *EntityContext) {
+	if len(ctx.AffectedEntities) == 0 {
+		return
+	}
+
+	fmt.Printf("\n%s── Affects ──%s\n", colorDim, colorReset)
+	for _, entity := range ctx.AffectedEntities {
+		fmt.Printf("  %s\n", formatEntityLine(entity, false, false))
+	}
+
+	if len(ctx.AffectedContext) == 0 {
+		return
+	}
+
+	affectedIDs := make(map[string]bool, len(ctx.AffectedEntities))
+	for _, entity := range ctx.AffectedEntities {
+		affectedIDs[entity.ID] = true
+	}
+
+	childMap := buildChildMap(ctx.AffectedContext)
+	var roots []*Entity
+	for _, entity := range ctx.AffectedContext {
+		if canonicalParentID(entity, ctx.AffectedContext) == "" {
+			roots = append(roots, entity)
+		}
+	}
+	SortEntities(roots)
+
+	fmt.Printf("\n%s── Entity Context ──%s\n", colorDim, colorReset)
+	for i, root := range roots {
+		if i > 0 {
+			fmt.Println()
+		}
+		printDecisionContextNode(root, childMap, "", "", affectedIDs)
+	}
+}
+
+func printDecisionContextNode(e *Entity, childMap map[string][]*Entity, line, prefix string, affectedIDs map[string]bool) {
+	fmt.Printf("%s%s\n", line, formatEntityLine(e, false, affectedIDs[e.ID]))
+
+	children := childMap[e.ID]
+	for i, child := range children {
+		isLast := i == len(children)-1
+		connector := "├── "
+		childPrefix := prefix + "│   "
+		if isLast {
+			connector = "└── "
+			childPrefix = prefix + "    "
+		}
+		printDecisionContextNode(child, childMap, prefix+connector, childPrefix, affectedIDs)
+	}
 }
 
 // ANSI color helpers
@@ -150,6 +223,9 @@ func printEntityMetadata(e *Entity) {
 	}
 	if e.ParentID != "" {
 		printMetaLine("parent_id", e.ParentID)
+	}
+	if len(e.Affects) > 0 {
+		printMetaLine("affects", strings.Join(e.Affects, ", "))
 	}
 	if len(e.Tags) > 0 {
 		printMetaLine("tags", strings.Join(e.Tags, ", "))

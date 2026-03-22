@@ -54,6 +54,13 @@ func init() {
 					}
 					e.ParentID = parentEntity.ID
 				}
+				if entityType == "decision" && cmd.Flags().Changed("affects") {
+					affects, _ := cmd.Flags().GetString("affects")
+					e.Affects, err = internal.ResolveAffects(root, affects)
+					if err != nil {
+						return err
+					}
+				}
 				if t, _ := cmd.Flags().GetString("tags"); t != "" {
 					e.Tags = nil
 					for _, tag := range splitTags(t) {
@@ -96,6 +103,9 @@ func init() {
 		cmd.Flags().String("tags", "", "New tags (comma-separated, replaces existing)")
 		cmd.Flags().String("priority", "", "New priority")
 		cmd.Flags().String("body", "", "New body content")
+		if entityType == "decision" {
+			cmd.Flags().String("affects", "", "New affected entity ids or slugs (comma-separated, replaces existing)")
+		}
 		editCmd.AddCommand(cmd)
 	}
 

@@ -132,6 +132,7 @@ pai complete T-1
 
 - `pai init` creates a `.pai/` workspace
 - `pai add idea|feature|task|decision <slug>` creates an item with an auto-generated typed ID
+- decisions can link to affected ideas, features, or tasks with `--affects I-1,F-2,T-4`
 - `pai edit ...` updates metadata or content
 - `pai delete ...` removes an item
 - `pai list ideas|features|tasks|decisions` lists items with filters

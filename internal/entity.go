@@ -14,6 +14,7 @@ type Entity struct {
 	Type     string // idea, feature, task, decision
 	Status   string
 	ParentID string
+	Affects  []string
 	Tags     []string
 	Priority string
 
@@ -29,7 +30,7 @@ type Entity struct {
 
 var knownFields = map[string]bool{
 	"id": true, "slug": true, "type": true, "status": true,
-	"parent": true, "parent_id": true, "tags": true, "priority": true,
+	"parent": true, "parent_id": true, "affects": true, "tags": true, "priority": true,
 }
 
 func ParseFile(path string) (*Entity, error) {
@@ -76,6 +77,13 @@ func Parse(content string, filePath string) (*Entity, error) {
 		case "parent":
 			if e.ParentID == "" {
 				e.ParentID = val
+			}
+		case "affects":
+			for _, ref := range strings.Split(val, ",") {
+				ref = strings.TrimSpace(ref)
+				if ref != "" {
+					e.Affects = append(e.Affects, ref)
+				}
 			}
 		case "tags":
 			for _, t := range strings.Split(val, ",") {
@@ -128,6 +136,9 @@ func (e *Entity) Serialize() string {
 	}
 	if e.ParentID != "" {
 		fmt.Fprintf(&b, "parent_id: %s\n", e.ParentID)
+	}
+	if len(e.Affects) > 0 {
+		fmt.Fprintf(&b, "affects: %s\n", strings.Join(e.Affects, ", "))
 	}
 	if len(e.Tags) > 0 {
 		fmt.Fprintf(&b, "tags: %s\n", strings.Join(e.Tags, ", "))

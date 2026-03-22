@@ -36,11 +36,11 @@ func init() {
 
 				all, _ := cmd.Flags().GetBool("all")
 				if all {
-					related, err := internal.GetRelated(root, e)
+					ctx, err := internal.GetEntityContext(root, e)
 					if err != nil {
 						return err
 					}
-					internal.PrintEntityWithRelated(e, related)
+					internal.PrintEntityWithContext(e, ctx)
 				} else {
 					internal.PrintEntityFull(e)
 				}
@@ -68,11 +68,11 @@ func init() {
 
 		all, _ := cmd.Flags().GetBool("all")
 		if all {
-			related, relErr := internal.GetRelated(root, e)
+			ctx, relErr := internal.GetEntityContext(root, e)
 			if relErr != nil {
 				return relErr
 			}
-			internal.PrintEntityWithRelated(e, related)
+			internal.PrintEntityWithContext(e, ctx)
 		} else {
 			internal.PrintEntityFull(e)
 		}

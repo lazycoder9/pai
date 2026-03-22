@@ -33,6 +33,7 @@ func init() {
 
 				status, _ := cmd.Flags().GetString("status")
 				parent, _ := cmd.Flags().GetString("parent")
+				affects, _ := cmd.Flags().GetString("affects")
 				tags, _ := cmd.Flags().GetString("tags")
 				priority, _ := cmd.Flags().GetString("priority")
 				body, _ := cmd.Flags().GetString("body")
@@ -75,6 +76,13 @@ func init() {
 					Body:     body,
 				}
 
+				if entityType == "decision" && cmd.Flags().Changed("affects") {
+					e.Affects, err = internal.ResolveAffects(root, affects)
+					if err != nil {
+						return err
+					}
+				}
+
 				if tags != "" {
 					for _, t := range splitTags(tags) {
 						e.Tags = append(e.Tags, t)
@@ -93,6 +101,9 @@ func init() {
 		cmd.Flags().String("tags", "", "Comma-separated tags")
 		cmd.Flags().String("priority", "", "Priority (low, medium, high)")
 		cmd.Flags().String("body", "", "Body content for the entity")
+		if entityType == "decision" {
+			cmd.Flags().String("affects", "", "Comma-separated entity ids or slugs affected by the decision")
+		}
 		addCmd.AddCommand(cmd)
 	}
 

@@ -12,6 +12,7 @@ description: "Manages project ideas, features, tasks, and decisions using the pa
 - **Entities**: idea, feature, task, decision — each stored as a markdown file
 - **Identity model**: entities have a typed `id` (`T-12`) and a human `slug` (`auth-login`)
 - **Knowledge graph**: entities link via `--parent`, forming a chain: Idea → Feature → Task
+- **Decision links**: decisions can reference affected ideas, features, and tasks via `affects`
 - **Task pipeline**: tasks move through `backlog → active → done`
 - **Reference resolution**: `pai get/edit/delete/start/complete` accept either an `id` or a `slug`
 
@@ -29,7 +30,7 @@ pai init --name "project-name"
 pai add idea <slug> --body "description" [--tags "t1,t2"] [--priority medium]
 pai add feature <slug> --parent <idea-id-or-slug> --body "spec"
 pai add task <slug> --parent <feature-id-or-slug> --body "implementation details" [--priority high]
-pai add decision <title> --body "context and reasoning"
+pai add decision <title> --body "context and reasoning" [--affects "I-1,F-2,T-4"]
 ```
 
 Typed IDs are auto-generated per entity type, starting at `I-1`, `F-1`, `T-1`, `D-1`.

@@ -68,9 +68,14 @@ func TestPrintEntityWithRelatedShowsContextTree(t *testing.T) {
 	}
 	task := &Entity{ID: "T-8", Slug: "renderer-tests", Type: "task", Status: "active", ParentID: "F-3"}
 	subtask := &Entity{ID: "T-9", Slug: "manual-check", Type: "task", Status: "backlog", ParentID: "T-8"}
+	decision := &Entity{ID: "D-2", Slug: "render-structured-context", Type: "decision", Affects: []string{"F-3"}}
 
 	output := captureStdout(t, func() {
-		PrintEntityWithRelated(feature, []*Entity{idea, task, subtask})
+		PrintEntityWithContext(feature, &EntityContext{
+			Ancestors:        []*Entity{idea},
+			Descendants:      []*Entity{task, subtask},
+			RelatedDecisions: []*Entity{decision},
+		})
 	})
 	output = stripANSI(output)
 
@@ -79,6 +84,31 @@ func TestPrintEntityWithRelatedShowsContextTree(t *testing.T) {
 	assertContains(t, output, "└── → 🔧 F-3 detail-view spec")
 	assertContains(t, output, "    └── 📌 T-8 renderer-tests active")
 	assertContains(t, output, "        └── 📌 T-9 manual-check backlog")
+	assertContains(t, output, "── Related Decisions ──")
+	assertContains(t, output, "📋 D-2 render-structured-context")
+}
+
+func TestPrintDecisionContextShowsAffectedEntities(t *testing.T) {
+	decision := &Entity{
+		ID:      "D-3",
+		Slug:    "link-decisions-to-work",
+		Type:    "decision",
+		Affects: []string{"I-2", "T-8"},
+	}
+	idea := &Entity{ID: "I-2", Slug: "improve-status", Type: "idea", Status: "raw"}
+	task := &Entity{ID: "T-8", Slug: "renderer-tests", Type: "task", Status: "active"}
+
+	output := captureStdout(t, func() {
+		PrintEntityWithContext(decision, &EntityContext{
+			AffectedEntities: []*Entity{idea, task},
+		})
+	})
+	output = stripANSI(output)
+
+	assertContains(t, output, "  affects:   I-2, T-8")
+	assertContains(t, output, "── Affects ──")
+	assertContains(t, output, "💡 I-2 improve-status raw")
+	assertContains(t, output, "📌 T-8 renderer-tests active")
 }
 
 func captureStdout(t *testing.T, fn func()) string {
